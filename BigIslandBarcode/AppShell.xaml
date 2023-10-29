@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<Shell xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:views="clr-namespace:BigIslandBarcode"
+             x:Class="BigIslandBarcode.AppShell"
+             Title="AppShell">
+    <Shell.FlyoutBackgroundColor>DarkGreen</Shell.FlyoutBackgroundColor>
+    <ShellContent Route="mainpage"
+                  Title="MainPage"
+                  ContentTemplate="{DataTemplate views:MainPage}" />
+    <ShellContent Route="newpage1"
+              Title="NewPage1"
+              ContentTemplate="{DataTemplate views:NewPage1}" />
+    <ShellContent Route="newpage2"
+              Title="NewPage2"
+              ContentTemplate="{DataTemplate views:NewPage2}" />
+</Shell>
