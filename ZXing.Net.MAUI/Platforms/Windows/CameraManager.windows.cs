@@ -315,12 +315,12 @@ namespace ZXing.Net.Maui
 					if (_currentMediaFrameSourceInfoId.Equals(selectedMediaFrameSourceInfo.Id))
 					{
 						//The selected camera is the same as the previous one: do nothing and exit.
-						Debug.WriteLine($"CameraManager {_dbgCameraManagerId} - InitCameraUnlockedAsync: camera {_currentMediaFrameSourceInfoId} is already initialized.");
+						Debug.WriteLine($"CameraManager {_dbgCameraManagerId} - InitCameraUnlockedAsync: camera {_currentMediaFrameSourceGroupId} is already initialized.");
 						return;
 					}
 
 					//Reinit the camera, by releasing the previous MediaCapture resources.
-					Debug.WriteLine($"CameraManager {_dbgCameraManagerId} - InitCameraUnlockedAsync: releasing previous camera {_currentMediaFrameSourceInfoId}.");
+					Debug.WriteLine($"CameraManager {_dbgCameraManagerId} - InitCameraUnlockedAsync: releasing previous camera {_currentMediaFrameSourceGroupId}.");
 					await UninitCameraUnlockedAsync();
 				}
 
@@ -388,7 +388,7 @@ namespace ZXing.Net.Maui
 
 				ShowPreviewBitmap();
 
-				Debug.WriteLine($"CameraManager {_dbgCameraManagerId} - InitCameraUnlockedAsync: camera {_currentMediaFrameSourceInfoId} correctly initialized.");
+				Debug.WriteLine($"CameraManager {_dbgCameraManagerId} - InitCameraUnlockedAsync: camera {_currentMediaFrameSourceGroupId} correctly initialized.");
 			}
 			catch (Exception ex)
 			{
