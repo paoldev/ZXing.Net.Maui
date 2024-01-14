@@ -89,6 +89,10 @@ namespace ZXing.Net.Maui
 		private MediaFrameReader _mediaFrameReader;
 		private static readonly SemaphoreSlim _mediaCaptureLifeLock = new(1);
 
+		//Debug stuff
+		private static int _s_dbgCameraManagerId = 0;
+		private readonly int _dbgCameraManagerId = ++_s_dbgCameraManagerId;
+
 		public NativePlatformCameraPreviewView CreateNativeView()
 		{
 			if (_cameraPreview == null)
@@ -216,6 +220,7 @@ namespace ZXing.Net.Maui
 		#region Async interface
 		private async Task ConnectAsync()
 		{
+			Debug.WriteLine($"CameraManager {_dbgCameraManagerId} - ConnectAsync");
 			await ExecuteLockedAsync(async () =>
 			{
 				//Connecting: forget any previously unloaded camera.
@@ -231,6 +236,7 @@ namespace ZXing.Net.Maui
 
 		private async Task DisconnectAsync()
 		{
+			Debug.WriteLine($"CameraManager {_dbgCameraManagerId} - DisconnectAsync");
 			await ExecuteLockedAsync(async () =>
 			{
 				//Disconnecting: forget any previously unloaded camera.
@@ -247,6 +253,7 @@ namespace ZXing.Net.Maui
 		//sourceGroupId is sent by the DeviceWatcher.
 		private async Task UpdateCameraAsync(string sourceGroupId = null)
 		{
+			Debug.WriteLine($"CameraManager {_dbgCameraManagerId} - UpdateCameraAsync " + (sourceGroupId ?? "<null>"));
 			await ExecuteLockedAsync(async () =>
 			{
 				if (!string.IsNullOrEmpty(_lastUnloadedMediaFrameSourceGroupId) && _lastUnloadedMediaFrameSourceGroupId.Equals(sourceGroupId))
@@ -262,6 +269,7 @@ namespace ZXing.Net.Maui
 		//sourceGroupId is sent by the DeviceWatcher.
 		private async Task CleanupCameraAsync(string sourceGroupId = null)
 		{
+			Debug.WriteLine($"CameraManager {_dbgCameraManagerId} - CleanupCameraAsync " + (sourceGroupId ?? "<null>"));
 			await ExecuteLockedAsync(async () =>
 			{
 				await UninitCameraUnlockedAsync(sourceGroupId);
@@ -282,6 +290,7 @@ namespace ZXing.Net.Maui
 					{
 						//This cameraManager is already initialized and bound to another source group,
 						//so ignore this initialization call.
+						Debug.WriteLine($"CameraManager {_dbgCameraManagerId} - InitCameraUnlockedAsync: camera already bound to {_currentMediaFrameSourceGroupId}. Ignoring {sourceGroupId}");
 						return;
 					}
 				}
@@ -291,6 +300,7 @@ namespace ZXing.Net.Maui
 				if (camera == null)
 				{
 					//Got an error or the camera is not connected; release any allocated resource and return.
+					Debug.WriteLine($"CameraManager {_dbgCameraManagerId} - InitCameraUnlockedAsync: requested camera was not found or the camera has been physically disconnected.");
 					await UninitCameraUnlockedAsync();
 					return;
 				}
@@ -305,10 +315,12 @@ namespace ZXing.Net.Maui
 					if (_currentMediaFrameSourceInfoId.Equals(selectedMediaFrameSourceInfo.Id))
 					{
 						//The selected camera is the same as the previous one: do nothing and exit.
+						Debug.WriteLine($"CameraManager {_dbgCameraManagerId} - InitCameraUnlockedAsync: camera {_currentMediaFrameSourceInfoId} is already initialized.");
 						return;
 					}
 
 					//Reinit the camera, by releasing the previous MediaCapture resources.
+					Debug.WriteLine($"CameraManager {_dbgCameraManagerId} - InitCameraUnlockedAsync: releasing previous camera {_currentMediaFrameSourceInfoId}.");
 					await UninitCameraUnlockedAsync();
 				}
 
@@ -375,11 +387,12 @@ namespace ZXing.Net.Maui
 				await _mediaFrameReader.StartAsync();
 
 				ShowPreviewBitmap();
+
+				Debug.WriteLine($"CameraManager {_dbgCameraManagerId} - InitCameraUnlockedAsync: camera {_currentMediaFrameSourceInfoId} correctly initialized.");
 			}
 			catch (Exception ex)
 			{
-				Debug.WriteLine(ex);
-
+				Debug.WriteLine($"CameraManager {_dbgCameraManagerId} - InitCameraUnlockedAsync exception: {ex.Message}");
 				await UninitCameraUnlockedAsync();
 			}
 		}
@@ -390,6 +403,8 @@ namespace ZXing.Net.Maui
 		{
 			if ((sourceGroupId == null) || sourceGroupId.Equals(_currentMediaFrameSourceGroupId))
 			{
+				Debug.WriteLine($"CameraManager {_dbgCameraManagerId} - UninitCameraUnlockedAsync: start releasing camera " + (_currentMediaFrameSourceGroupId ?? "<null>"));
+
 				if (_mediaFrameReader != null)
 				{
 					_colorFrameReaderHandlerAvailable = false;
@@ -421,6 +436,7 @@ namespace ZXing.Net.Maui
 					await imageSource?.SetBitmapAsync(null);
 				}
 				HidePreviewBitmap();
+				Debug.WriteLine($"CameraManager {_dbgCameraManagerId} - UninitCameraUnlockedAsync: camera released");
 			}
 		}
 
@@ -504,7 +520,7 @@ namespace ZXing.Net.Maui
 			}
 			catch (Exception ex)
 			{
-				Debug.WriteLine(ex);
+				Debug.WriteLine($"FindCameraAsync exception: {ex.Message}");
 			}
 
 			return null;
@@ -528,7 +544,7 @@ namespace ZXing.Net.Maui
 			}
 			catch (Exception ex)
 			{
-				Debug.WriteLine(ex);
+				Debug.WriteLine($"CameraManager {_dbgCameraManagerId} - UpdateTorchAsync exception: {ex.Message}");
 			}
 			finally
 			{
@@ -588,7 +604,7 @@ namespace ZXing.Net.Maui
 			}
 			catch (Exception ex)
 			{
-				Debug.WriteLine(ex);
+				Debug.WriteLine($"CameraManager {_dbgCameraManagerId} - FocusAsync exception: {ex.Message}");
 			}
 			finally
 			{
@@ -631,7 +647,7 @@ namespace ZXing.Net.Maui
 			}
 			catch (Exception ex)
 			{
-				Debug.WriteLine(ex);
+				Debug.WriteLine($"CameraManager {_dbgCameraManagerId} - AutoFocusAsync exception: {ex.Message}");
 			}
 			finally
 			{
@@ -669,6 +685,7 @@ namespace ZXing.Net.Maui
 		{
 			//Use CleanupCameraAsync instead of Disconnect to keep the DeviceWatcher alive. Only DisconnectHandler()
 			//will call Disconnect() to also detach the DeviceWatcher.
+			Debug.WriteLine($"CameraManager {_dbgCameraManagerId} - CameraPreview_Unloaded: saving camera stream " + (_currentMediaFrameSourceGroupId ?? "<null>"));
 			_lastUnloadedMediaFrameSourceGroupId = _currentMediaFrameSourceGroupId;
 			TryEnqueueUI(async () => await CleanupCameraAsync());
 		}
@@ -677,16 +694,22 @@ namespace ZXing.Net.Maui
 		{
 			if (!string.IsNullOrEmpty(_lastUnloadedMediaFrameSourceGroupId))
 			{
+				Debug.WriteLine($"CameraManager {_dbgCameraManagerId} - CameraPreview_Loaded: trying to initialize previous camera stream {_lastUnloadedMediaFrameSourceGroupId}");
+
 				string sourceGroupId = _lastUnloadedMediaFrameSourceGroupId;
 				_lastUnloadedMediaFrameSourceGroupId = null;
 				TryEnqueueUI(async () => await UpdateCameraAsync(sourceGroupId));
+			}
+			else
+			{
+				Debug.WriteLine($"CameraManager {_dbgCameraManagerId} - CameraPreview_Loaded: no previous camera stream has been found");
 			}
 		}
 
 		//Reset the camera in case of errors
 		private void MediaCapture_Failed(MediaCapture sender, MediaCaptureFailedEventArgs errorEventArgs)
 		{
-			Debug.WriteLine("MediaCapture_Failed: (0x{0:X}) {1}", errorEventArgs.Code, errorEventArgs.Message);
+			Debug.WriteLine($"CameraManager {_dbgCameraManagerId} - MediaCapture_Failed: (0x{0:X}) {1}", errorEventArgs.Code, errorEventArgs.Message);
 
 			TryEnqueueUI(async () => await CleanupCameraAsync());
 		}
@@ -814,6 +837,7 @@ namespace ZXing.Net.Maui
 			{
 				if (_watcher != null)
 				{
+					Debug.WriteLine("Watcher_Updated DeviceId: " + (args.Id ?? "<null>"));
 					foreach (var camera in _activeCameras)
 					{
 						camera.UpdateDevice(args.Id);
@@ -831,6 +855,7 @@ namespace ZXing.Net.Maui
 			{
 				if (_watcher != null)
 				{
+					Debug.WriteLine("Watcher_Removed DeviceId: " + (args.Id ?? "<null>"));
 					foreach (var camera in _activeCameras)
 					{
 						camera.RemoveDevice(args.Id);
@@ -848,6 +873,7 @@ namespace ZXing.Net.Maui
 			{
 				if (_watcher != null)
 				{
+					Debug.WriteLine("Watcher_Added DeviceId: " + (args.Id ?? "<null>"));
 					foreach (var camera in _activeCameras)
 					{
 						camera.AddDevice(args.Id);
