@@ -34,12 +34,6 @@
 #define FORCE_FRAMES_AT_PREVIEW_RESOLUTION
 
 using System;
-using Microsoft.Maui;
-using Microsoft.Maui.Handlers;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Maui.Controls.PlatformConfiguration;
-using static Microsoft.Maui.ApplicationModel.Permissions;
-using Microsoft.UI.Xaml.Controls;
 using System.Diagnostics;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Media;
@@ -87,7 +81,7 @@ namespace ZXing.Net.Maui
 		//MediaCapture
 		private MediaCapture _mediaCapture;
 		private MediaFrameReader _mediaFrameReader;
-		private static readonly SemaphoreSlim _mediaCaptureLifeLock = new(1);
+		private static readonly SemaphoreSlim MediaCaptureLifeLock = new(1);
 
 		//Debug stuff
 		private static int _s_dbgCameraManagerId = 0;
@@ -204,7 +198,7 @@ namespace ZXing.Net.Maui
 
 		private static async Task ExecuteLockedAsync(Func<Task> handler)
 		{
-			await _mediaCaptureLifeLock.WaitAsync();
+			await MediaCaptureLifeLock.WaitAsync();
 
 			try
 			{
@@ -212,7 +206,7 @@ namespace ZXing.Net.Maui
 			}
 			finally
 			{
-				_mediaCaptureLifeLock.Release();
+				MediaCaptureLifeLock.Release();
 			}
 		}
 		#endregion
@@ -270,10 +264,7 @@ namespace ZXing.Net.Maui
 		private async Task CleanupCameraAsync(string sourceGroupId = null)
 		{
 			Debug.WriteLine($"CameraManager {_dbgCameraManagerId} - CleanupCameraAsync " + (sourceGroupId ?? "<null>"));
-			await ExecuteLockedAsync(async () =>
-			{
-				await UninitCameraUnlockedAsync(sourceGroupId);
-			});
+			await ExecuteLockedAsync(async () => await UninitCameraUnlockedAsync(sourceGroupId));
 		}
 
 		//Initialize or update the camera, according to sourceGroupId parameter and CameraLocation property.
@@ -447,7 +438,7 @@ namespace ZXing.Net.Maui
 
 		//Returns the desired camera.
 		//sourceGroupId is sent by the DeviceWatcher.
-		private async static Task<MediaFrameSourceInfo> FindCameraAsync(string sourceGroupId, CameraLocation cameraLocation)
+		private static async Task<MediaFrameSourceInfo> FindCameraAsync(string sourceGroupId, CameraLocation cameraLocation)
 		{
 			var preferredPanelLocation = (cameraLocation == CameraLocation.Front) ?
 				Windows.Devices.Enumeration.Panel.Front :
@@ -458,31 +449,23 @@ namespace ZXing.Net.Maui
 			var selectionConditions = new List<Func<MediaFrameSourceInfo, bool>>()
 				{
 					(sourceInfo) => //Color, VideoPreview, PreferredPanelLocation
-					{
-						 return sourceInfo.SourceGroup != null
+							sourceInfo.SourceGroup != null
 							&& sourceInfo.SourceKind == MediaFrameSourceKind.Color
 							&& sourceInfo.MediaStreamType == MediaStreamType.VideoPreview
-							&& sourceInfo.DeviceInformation?.EnclosureLocation?.Panel == preferredPanelLocation;
-					},
+							&& sourceInfo.DeviceInformation?.EnclosureLocation?.Panel == preferredPanelLocation,
 					(sourceInfo) => //Color, VideoRecord, PreferredPanelLocation
-					{
-						 return sourceInfo.SourceGroup != null
+							sourceInfo.SourceGroup != null
 							&& sourceInfo.SourceKind == MediaFrameSourceKind.Color
 							&& sourceInfo.MediaStreamType == MediaStreamType.VideoRecord
-							&& sourceInfo.DeviceInformation?.EnclosureLocation?.Panel == preferredPanelLocation;
-					},
+							&& sourceInfo.DeviceInformation?.EnclosureLocation?.Panel == preferredPanelLocation,
 					(sourceInfo) => //Color, VideoPreview
-					{
-						 return sourceInfo.SourceGroup != null
+							sourceInfo.SourceGroup != null
 							&& sourceInfo.SourceKind == MediaFrameSourceKind.Color
-							&& sourceInfo.MediaStreamType == MediaStreamType.VideoPreview;
-					},
+							&& sourceInfo.MediaStreamType == MediaStreamType.VideoPreview,
 					(sourceInfo) => //Color, VideoRecord
-					{
-						 return sourceInfo.SourceGroup != null
+							sourceInfo.SourceGroup != null
 							&& sourceInfo.SourceKind == MediaFrameSourceKind.Color
-							&& sourceInfo.MediaStreamType == MediaStreamType.VideoRecord;
-					},
+							&& sourceInfo.MediaStreamType == MediaStreamType.VideoRecord,
 				};
 
 			try
@@ -533,7 +516,7 @@ namespace ZXing.Net.Maui
 
 		private async Task UpdateTorchAsync(bool on)
 		{
-			await _mediaCaptureLifeLock.WaitAsync();
+			await MediaCaptureLifeLock.WaitAsync();
 
 			try
 			{
@@ -553,13 +536,13 @@ namespace ZXing.Net.Maui
 			}
 			finally
 			{
-				_mediaCaptureLifeLock.Release();
+				MediaCaptureLifeLock.Release();
 			}
 		}
 
 		private async Task FocusAsync(Microsoft.Maui.Graphics.Point point)
 		{
-			await _mediaCaptureLifeLock.WaitAsync();
+			await MediaCaptureLifeLock.WaitAsync();
 
 			try
 			{
@@ -581,7 +564,7 @@ namespace ZXing.Net.Maui
 				};
 
 				await regionsOfInterestControl.ClearRegionsAsync();
-				await regionsOfInterestControl.SetRegionsAsync(new[] { roi });
+				await regionsOfInterestControl.SetRegionsAsync([roi]);
 
 				var focusControl = _mediaCapture?.VideoDeviceController?.FocusControl;
 				if (focusControl?.Supported ?? false)
@@ -613,13 +596,13 @@ namespace ZXing.Net.Maui
 			}
 			finally
 			{
-				_mediaCaptureLifeLock.Release();
+				MediaCaptureLifeLock.Release();
 			}
 		}
 
 		private async Task AutoFocusAsync()
 		{
-			await _mediaCaptureLifeLock.WaitAsync();
+			await MediaCaptureLifeLock.WaitAsync();
 
 			try
 			{
@@ -656,7 +639,7 @@ namespace ZXing.Net.Maui
 			}
 			finally
 			{
-				_mediaCaptureLifeLock.Release();
+				MediaCaptureLifeLock.Release();
 			}
 		}
 #endregion
@@ -795,42 +778,42 @@ namespace ZXing.Net.Maui
 
 #if ENABLE_DEVICE_WATCHER
 		//Device Watcher
-		private static DeviceWatcher _watcher;
-		private static readonly List<CameraManager> _activeCameras = new();
-		private static readonly object _watcherLock = new();
+		private static DeviceWatcher s_watcher;
+		private static readonly List<CameraManager> ActiveCameras = [];
+		private static readonly Lock WatcherLock = new();
 
 		private static void RegisterWatcher(CameraManager cameraManager)
 		{
-			lock (_watcherLock)
+			lock (WatcherLock)
 			{
-				if (!_activeCameras.Contains(cameraManager))
+				if (!ActiveCameras.Contains(cameraManager))
 				{
-					_activeCameras.Add(cameraManager);
+					ActiveCameras.Add(cameraManager);
 				}
-				if (_watcher == null)
+				if (s_watcher == null)
 				{
 					var deviceSelector = MediaFrameSourceGroup.GetDeviceSelector();
-					_watcher = DeviceInformation.CreateWatcher(deviceSelector);
-					_watcher.Added += Watcher_Added;
-					_watcher.Removed += Watcher_Removed;
-					_watcher.Updated += Watcher_Updated;
-					_watcher.Start();
+					s_watcher = DeviceInformation.CreateWatcher(deviceSelector);
+					s_watcher.Added += Watcher_Added;
+					s_watcher.Removed += Watcher_Removed;
+					s_watcher.Updated += Watcher_Updated;
+					s_watcher.Start();
 				}
 			}
 		}
 
 		private static void UnregisterWatcher(CameraManager cameraManager)
 		{
-			lock (_watcherLock)
+			lock (WatcherLock)
 			{
-				_activeCameras.Remove(cameraManager);
-				if (_activeCameras.Count == 0 && (_watcher != null))
+				ActiveCameras.Remove(cameraManager);
+				if (ActiveCameras.Count == 0 && (s_watcher != null))
 				{
-					_watcher.Stop();
-					_watcher.Updated -= Watcher_Updated;
-					_watcher.Removed -= Watcher_Removed;
-					_watcher.Added -= Watcher_Added;
-					_watcher = null;
+					s_watcher.Stop();
+					s_watcher.Updated -= Watcher_Updated;
+					s_watcher.Removed -= Watcher_Removed;
+					s_watcher.Added -= Watcher_Added;
+					s_watcher = null;
 				}
 			}
 		}
@@ -840,12 +823,12 @@ namespace ZXing.Net.Maui
 		/// </summary>
 		private static void Watcher_Updated(DeviceWatcher sender, DeviceInformationUpdate args)
 		{
-			lock (_watcherLock)
+			lock (WatcherLock)
 			{
-				if (_watcher != null)
+				if (s_watcher != null)
 				{
 					Debug.WriteLine("Watcher_Updated DeviceId: " + (args.Id ?? "<null>"));
-					foreach (var camera in _activeCameras)
+					foreach (var camera in ActiveCameras)
 					{
 						camera.UpdateDevice(args.Id);
 					}
@@ -858,12 +841,12 @@ namespace ZXing.Net.Maui
 		/// </summary>
 		private static void Watcher_Removed(DeviceWatcher sender, DeviceInformationUpdate args)
 		{
-			lock (_watcherLock)
+			lock (WatcherLock)
 			{
-				if (_watcher != null)
+				if (s_watcher != null)
 				{
 					Debug.WriteLine("Watcher_Removed DeviceId: " + (args.Id ?? "<null>"));
-					foreach (var camera in _activeCameras)
+					foreach (var camera in ActiveCameras)
 					{
 						camera.RemoveDevice(args.Id);
 					}
@@ -876,12 +859,12 @@ namespace ZXing.Net.Maui
 		/// </summary>
 		private static void Watcher_Added(DeviceWatcher sender, DeviceInformation args)
 		{
-			lock (_watcherLock)
+			lock (WatcherLock)
 			{
-				if (_watcher != null)
+				if (s_watcher != null)
 				{
 					Debug.WriteLine("Watcher_Added DeviceId: " + (args.Id ?? "<null>"));
-					foreach (var camera in _activeCameras)
+					foreach (var camera in ActiveCameras)
 					{
 						camera.AddDevice(args.Id);
 					}
