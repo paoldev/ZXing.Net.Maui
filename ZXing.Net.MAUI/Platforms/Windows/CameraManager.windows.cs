@@ -84,8 +84,8 @@ namespace ZXing.Net.Maui
 		private static readonly SemaphoreSlim MediaCaptureLifeLock = new(1);
 
 		//Debug stuff
-		private static int _s_dbgCameraManagerId = 0;
-		private readonly int _dbgCameraManagerId = ++_s_dbgCameraManagerId;
+		private static int s_dbgCameraManagerId = 0;
+		private readonly int _dbgCameraManagerId = ++s_dbgCameraManagerId;
 
 		public NativePlatformCameraPreviewView CreateNativeView()
 		{
