@@ -77,6 +77,15 @@ cameraBarcodeReaderView.Options = new BarcodeReaderOptions
 };
 ```
 
+QR codes with international characters (e.g., £, €, ¥, or non-Latin scripts) are supported by default with UTF-8 encoding. You can override this if needed:
+```csharp
+cameraBarcodeReaderView.Options = new BarcodeReaderOptions
+{
+  Formats = BarcodeFormats.TwoDimensional,
+  CharacterSet = "ISO-8859-1"  // Override default UTF-8 if needed
+};
+```
+
 Toggle Torch
 ```csharp
 cameraBarcodeReaderView.IsTorchOn = !cameraBarcodeReaderView.IsTorchOn;
@@ -86,6 +95,30 @@ Flip between Rear/Front cameras
 ```csharp
 cameraBarcodeReaderView.CameraLocation
   = cameraBarcodeReaderView.CameraLocation == CameraLocation.Rear ? CameraLocation.Front : CameraLocation.Rear;
+```
+
+Select a specific camera
+```csharp
+// Get available cameras
+var cameras = await cameraBarcodeReaderView.GetAvailableCameras();
+
+// Select a specific camera by setting the SelectedCamera property
+if (cameras.Count > 0)
+{
+  cameraBarcodeReaderView.SelectedCamera = cameras[0];
+}
+
+// Or loop through available cameras and select one by name
+foreach (var camera in cameras)
+{
+  Console.WriteLine($"Camera: {camera.Name} ({camera.Location})");
+  // Select the first rear camera found
+  if (camera.Location == CameraLocation.Rear)
+  {
+    cameraBarcodeReaderView.SelectedCamera = camera;
+    break;
+  }
+}
 ```
 
 Handle detected barcode(s)
